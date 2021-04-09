@@ -1,0 +1,17 @@
+Added Component: Designator=C1(0402 CAP)
+Add component (AddParameter): Name = "Value"; Value = "100n"; VariantName = "[No Variations]"
+Added Component: Designator=H(Allegro A1324)
+Added Component: Designator=P1(padThree_L)
+Add component (AddParameter): Name = "Value"; Value = "1x3 Pin Header"; VariantName = "[No Variations]"
+Added Pin To Net: NetName=GND Pin=C1-1
+Added Pin To Net: NetName=GND Pin=H-2
+Added Pin To Net: NetName=GND Pin=P1-3
+Added Net: Name=GND
+Added Pin To Net: NetName=NetC1_2 Pin=C1-2
+Added Pin To Net: NetName=NetC1_2 Pin=H-1
+Added Pin To Net: NetName=NetC1_2 Pin=P1-1
+Added Net: Name=NetC1_2
+Added Pin To Net: NetName=NetH_3 Pin=H-3
+Added Pin To Net: NetName=NetH_3 Pin=P1-2
+Added Net: Name=NetH_3
+Added Class: Name=Halleffektsgivare_kort

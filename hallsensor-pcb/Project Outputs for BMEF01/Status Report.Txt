@@ -1,0 +1,15 @@
+Output: Gerber Files
+Type  : Gerber
+From  : Variant [[No Variations]] of PCB Document [Halleffektsgivare_kort.PcbDoc]
+   Generated File[Halleffektsgivare_kort.GTL]
+   Generated File[Halleffektsgivare_kort.GKO]
+   Generated File[Halleffektsgivare_kort.GD1]
+   Generated File[Halleffektsgivare_kort.RUL]
+   Generated File[Halleffektsgivare_kort.EXTREP]
+   Generated File[Halleffektsgivare_kort.REP]
+
+
+Files Generated   : 6
+Documents Printed : 0
+
+Finished Output Generation At 00:57:23 On 2021-04-01
