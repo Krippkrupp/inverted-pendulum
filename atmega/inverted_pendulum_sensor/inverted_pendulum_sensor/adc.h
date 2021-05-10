@@ -41,6 +41,12 @@
 **/
 void setup_adc(uint8_t single_ended_input);
 
+/**
+*	\brief Set which pin should be used to convert an analog signal
+*	to a digital signal. Note that only one channel can be used at onece.
+*	@param is used to set which channel. Use the predefined macros in adc.h
+**/
+void set_channel(uint8_t CHANNEL);
 
 /**
 *	\brief Sets the prescaler for the AD converter
