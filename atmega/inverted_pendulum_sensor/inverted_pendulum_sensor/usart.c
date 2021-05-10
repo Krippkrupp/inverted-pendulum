@@ -18,7 +18,7 @@ void usart_init()
 	//UCSR0C |= (3<<UCSZ00);
 }
 
-void transmit_speed(uint16_t speed)
+void transmit_speed(uint16_t speed)	//Ta bört?
 {
 	uint8_t tmp = (speed>>8);
 	usart_transmit(tmp);

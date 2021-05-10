@@ -37,7 +37,7 @@ plot(deg, H1,'o')
 plot(deg, H2, 'o');
 
 % Polyfit
-p1 = polyfit(deg, H1, 2)
+p1 = polyfit(deg, H1, 2)    
 p2 = polyfit(deg, H2, 2)
 x = linspace(-25, 25, 500);
 H1_poly = polyval(p1, x);
