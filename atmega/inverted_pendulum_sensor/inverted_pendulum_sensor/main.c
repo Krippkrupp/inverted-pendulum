@@ -13,22 +13,22 @@
 
 #define		ADC_SWITCH	2
 
-#define		NOTHING_VAL 1				//		Don tmove if e1 and e2 are less than this, likely an error 
+#define		NOTHING_VAL 0				//		Don tmove if e1 and e2 are less than this, likely an error 
 
 		//		PID REGULATOR
 #define		DELTA_TIME	0.0004			//		For prescaler 32
-#define		P			17				//		Proportional value
-#define		Ki			0				//		Integral	constant
-#define		Kd			25				//		Derivative constant
+#define		P			30				//		Proportional value
+#define		Ki			0.0000001				//		Integral	constant
+#define		Kd			20				//		Derivative constant
 //#define		TARGET_1	698				//		Target value for degree = 0. Gör om till variabel så kan vi köra den också?
 //#define		TARGET_2	712
 
-#define		MOVING_AVARAGE		20	//10 tidigare, funkar
+#define		MOVING_AVARAGE		60	//10 tidigare, funkar
 
 #define BACKWARDS 0
 #define FORWARD (1<<7)
 
-#define RASPBERRY_PI_DELAY 400	//Nej: 50, 100, 250 Ja(?): 500
+#define RASPBERRY_PI_DELAY 1	//Nej: 50, 100, 250 Ja(?): 500, 400 ja, 350 verkar bra
 
 #include <util/delay.h>
 #include <avr/io.h>
@@ -230,6 +230,7 @@ void getDegree(){	// Dåligt namn. Byt det ditt äckel
 		return;
 	}*/
 	
+	/*
 	if(e1==e2 || (e1 < NOTHING_VAL && e2 < NOTHING_VAL)){
 		e1=0;
 		e2=0;
@@ -237,19 +238,20 @@ void getDegree(){	// Dåligt namn. Byt det ditt äckel
 		send_motorspeed();
 		return;
 	}
+	*/
 	
 	/// TA bort ovan
 	
 	if(e1>e2){
 		//speed = -(P*e1);
-		speed = abs(P*e1+Ki*(H1-H1_prev)+Kd*(H1-H1_prev));//+Ki*(H1-H1_prev)*DELTA_TIME+Kd*(H1-H1_prev)*DELTA_TIME);			//	Negative multiplication due to the nature of TARGET-adc_val
+		speed = abs(P*e1+Ki*(TARGET_1-(H1+H1_prev)/2)+Kd*(H1-H1_prev));//+Ki*(H1-H1_prev)*DELTA_TIME+Kd*(H1-H1_prev)*DELTA_TIME);			//	Negative multiplication due to the nature of TARGET-adc_val
 		/*double tmp = speed;
 		tmp/=max_speed_e1;
 		tmp*=125;
 		speed = tmp;*/
 		motor_direction = FORWARD;
 	}else{											//	Leaning towards H1, need to drive backwards, e2 should be used
-		speed = abs(P*e2+Ki*(H2-H2_prev)+Kd*(H2-H2_prev));//+Ki*(H2-H2_prev)*DELTA_TIME+Kd*(H2-H2_prev)*DELTA_TIME);			//	Negative multiplication due to the nature of TARGET-adc_val
+		speed = abs(P*e2+Ki*(TARGET_2-(H2+H2_prev)/2)+Kd*(H2-H2_prev));//+Ki*(H2-H2_prev)*DELTA_TIME+Kd*(H2-H2_prev)*DELTA_TIME);			//	Negative multiplication due to the nature of TARGET-adc_val
 		/*speed/=max_speed_e2;
 		speed*=127;*/
 		/*double tmp = speed;
