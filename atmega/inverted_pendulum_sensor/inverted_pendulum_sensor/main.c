@@ -6,27 +6,29 @@
  */ 
 
 
-#define		F_CPU		8000000UL
+#define		F_CPU		16000000UL
 #define		H1_SENS		0
 #define		H2_SENS		1
 
 
 #define		ADC_SWITCH	2
 
+#define		NOTHING_VAL 1				//		Don tmove if e1 and e2 are less than this, likely an error 
+
 		//		PID REGULATOR
 #define		DELTA_TIME	0.0004			//		For prescaler 32
-#define		P			2				//		Proportional value
+#define		P			17				//		Proportional value
 #define		Ki			0				//		Integral	constant
-#define		Kd			0				//		Derivative constant
+#define		Kd			25				//		Derivative constant
 //#define		TARGET_1	698				//		Target value for degree = 0. Gör om till variabel så kan vi köra den också?
 //#define		TARGET_2	712
 
-#define		MOVING_AVARAGE		10
+#define		MOVING_AVARAGE		20	//10 tidigare, funkar
 
 #define BACKWARDS 0
 #define FORWARD (1<<7)
 
-#define RASPBERRY_PI_DELAY 700	//Nej: 50, 100, 250 Ja(?): 500
+#define RASPBERRY_PI_DELAY 400	//Nej: 50, 100, 250 Ja(?): 500
 
 #include <util/delay.h>
 #include <avr/io.h>
@@ -58,6 +60,8 @@ int TARGET_1, TARGET_2;
 int e_val_1 = 0;
 int e_val_2 = 0;
 
+volatile uint8_t prev_transmit;
+
 //volatile uint16_t speed = 0;
 volatile float speed = 0;
 uint8_t motor_direction=0;
@@ -73,6 +77,7 @@ int max_speed_e1, max_speed_e2;
 void getDegree();
 void send_motorspeed();
 void startSeq();				//	Starting sequence... skönt att vi inte valde rotationsenkoder
+void reset_counters();
 
 int main(void)
 {
@@ -147,7 +152,8 @@ ISR(ADC_vect){
 			}else{
 				H2_prev = H2;
 				H2 = buffer/MOVING_AVARAGE;
-				e2=abs(TARGET_2-H2);						// e_2(t)
+				//e2=abs(TARGET_2-H2);						// e_2(t)
+				e2= H2-TARGET_2;
 				//	Switch reading to other sensor, H1
 				set_channel(ADC0);						//	Set ADC channel to PA0
 				sensor=H1_SENS;
@@ -190,16 +196,60 @@ ISR(ADC_vect){
 *	at the current place in time.
 */
 void getDegree(){	// Dåligt namn. Byt det ditt äckel
-	if(H1>H2){										//	Leaning towards H2, need to drive forward, e1 should be used
+	
+	
+	//TEST, byter H1>H2 mot e1>e2
+	//if(H1>H2){										//	Leaning towards H2, need to drive forward, e1 should be used
+	/*
+	uint8_t tmp;
+	speed = P*e1+Kd*(H1-H1_prev);
+	if(e1<=0){
+		motor_direction=BACKWARDS;
+	}else{
+		motor_direction=FORWARD;
+	}
+	if(speed>0){
+		if(speed>=127){speed=126;}
+			tmp=speed;
+	}else{
+		if(speed<=-127){speed=126;}
+			tmp=speed;
+	}
+	tmp|=motor_direction;
+		usart_transmit(tmp);
+	reset_counters();
+	
+	return;
+	*/
+	/*
+	if(e1 < NOTHING_VAL && e2 < NOTHING_VAL){
+		e1=0;
+		e2=0;
+		speed = 0;
+		send_motorspeed();
+		return;
+	}*/
+	
+	if(e1==e2 || (e1 < NOTHING_VAL && e2 < NOTHING_VAL)){
+		e1=0;
+		e2=0;
+		speed = 0;
+		send_motorspeed();
+		return;
+	}
+	
+	/// TA bort ovan
+	
+	if(e1>e2){
 		//speed = -(P*e1);
-		speed = abs(P*e1);//+Ki*(H1-H1_prev)*DELTA_TIME+Kd*(H1-H1_prev)*DELTA_TIME);			//	Negative multiplication due to the nature of TARGET-adc_val
+		speed = abs(P*e1+Ki*(H1-H1_prev)+Kd*(H1-H1_prev));//+Ki*(H1-H1_prev)*DELTA_TIME+Kd*(H1-H1_prev)*DELTA_TIME);			//	Negative multiplication due to the nature of TARGET-adc_val
 		/*double tmp = speed;
 		tmp/=max_speed_e1;
 		tmp*=125;
 		speed = tmp;*/
 		motor_direction = FORWARD;
 	}else{											//	Leaning towards H1, need to drive backwards, e2 should be used
-		speed = abs(P*e2);//+Ki*(H2-H2_prev)*DELTA_TIME+Kd*(H2-H2_prev)*DELTA_TIME);			//	Negative multiplication due to the nature of TARGET-adc_val
+		speed = abs(P*e2+Ki*(H2-H2_prev)+Kd*(H2-H2_prev));//+Ki*(H2-H2_prev)*DELTA_TIME+Kd*(H2-H2_prev)*DELTA_TIME);			//	Negative multiplication due to the nature of TARGET-adc_val
 		/*speed/=max_speed_e2;
 		speed*=127;*/
 		/*double tmp = speed;
@@ -209,7 +259,7 @@ void getDegree(){	// Dåligt namn. Byt det ditt äckel
 		
 		motor_direction = BACKWARDS;
 	}
-
+	
 	send_motorspeed();
 
 	
@@ -222,47 +272,108 @@ void send_motorspeed()
 	data = speed;
 	
 	data|=motor_direction;
+	// Trying to send only when needed, but this causes an error when the motors dont get updated in 
+	// Inverted_pendulum_driver.py
+	/*if(data!=prev_transmit){
 	usart_transmit(data);
+	}
+	prev_transmit=data;*/
 	
-	adc_switch_counter = 0;							//	Already done at least two readings, keep going.
-	transmit_counter=0;		// Fix: flytta dessa två till en egen "reset_counters" ska ske efter transmits
+	usart_transmit(data);
+	reset_counters();
 }
 
+void reset_counters(){
+		adc_switch_counter = 0;							//	Already done at least two readings, keep going.
+		transmit_counter=0;		// Fix: flytta dessa två till en egen "reset_counters" ska ske efter transmits
+}
 
 void startSeq(){
 	while(!(PINA&(1<<PINA7)));
+	//Ta en miljard värden
+	int buffer = 0;
+	uint8_t nbr_avg = 10;
+	uint8_t delay_time = 5;
+	
 	H1_MIN = ADC;
-	_delay_ms(50);
-	H1_MIN = ADC;
+	_delay_ms(20);
+	for(int i = 0; i<nbr_avg; i++){
+		buffer+=ADC;
+		_delay_ms(delay_time);
+	}
+	H1_MIN = buffer/nbr_avg;
+	buffer=0;
 	set_channel(ADC1);
-	_delay_ms(50);
+	_delay_ms(20);
+	
 	H2_MAX = ADC;
-	_delay_ms(50);
-	H2_MAX = ADC;
+	_delay_ms(20);
+	for(int i = 0; i<nbr_avg; i++){
+		buffer+=ADC;
+		_delay_ms(delay_time);
+	}
+	H2_MAX = buffer/nbr_avg;
+	buffer=0;
+	_delay_ms(20);
+	
+	
+	
 	_delay_ms(500);
 	while(!(PINA&(1<<PINA7)));
+	
+	
 	H2_MIN = ADC;
-	_delay_ms(50);
-	H2_MIN = ADC;
+	_delay_ms(20);
+	for(int i = 0; i<nbr_avg; i++){
+		buffer+=ADC;
+		_delay_ms(delay_time);
+	}
+	H2_MIN = buffer/nbr_avg;
+	buffer=0;
 	set_channel(ADC0);
-	_delay_ms(50);
+	_delay_ms(20);
+	
+	
 	H1_MAX = ADC;
-	_delay_ms(50);
-	H1_MAX = ADC;
+	_delay_ms(20);
+	for(int i = 0; i<nbr_avg; i++){
+		buffer+=ADC;
+		_delay_ms(delay_time);
+	}
+	H1_MAX = buffer/nbr_avg;
+	buffer=0;
+	_delay_ms(20);
+		
+	
 	_delay_ms(500);
 	while(!(PINA&(1<<PINA7)));
+	
+	
 	TARGET_1 = ADC;
-	_delay_ms(50);
-	TARGET_1 = ADC;
+	_delay_ms(20);
+	for(int i = 0; i<nbr_avg; i++){
+		buffer+=ADC;
+		_delay_ms(delay_time);
+	}
+	TARGET_1 = buffer/nbr_avg;
+	buffer=0;
 	set_channel(ADC1);
-	_delay_ms(50);
+	_delay_ms(20);
+	
 	TARGET_2 = ADC;
-	_delay_ms(50);
-	TARGET_2 = ADC;
-	_delay_ms(50);
+	_delay_ms(20);
+	for(int i = 0; i<nbr_avg; i++){
+		buffer+=ADC;
+		_delay_ms(delay_time);
+	}
+	TARGET_2 = buffer/nbr_avg;
+	buffer=0;
 	set_channel(ADC0);
+	_delay_ms(20);
+		
+	
 	max_speed_e1 = abs(1*(TARGET_1-H1_MAX));		// FIX! FIND CORRECT VALUE FOR (H1-H1_prev)*DELTA_TIME+Kd*(H1-H1_prev)*DELTA_TIME). Measure what H1-H1_PREV could be at a maximum
-	max_speed_e2 = abs(1*(TARGET_1-H1_MAX));		// FIX! FIND CORRECT VALUE FOR (H2-H2_prev)*DELTA_TIME+Kd*(H2-H2_prev)*DELTA_TIME). Measure what H1-H1_PREV could be at a maximum
+	max_speed_e2 = abs(1*(TARGET_2-H2_MAX));		// FIX! FIND CORRECT VALUE FOR (H2-H2_prev)*DELTA_TIME+Kd*(H2-H2_prev)*DELTA_TIME). Measure what H1-H1_PREV could be at a maximum
 	sei();
 }
 

@@ -9,7 +9,7 @@
 
 void usart_init()
 {
-	UBRR0 = 103; // 9600=103 baud @ 16 MHz, 51=9600 @ 8 MHz
+	UBRR0 = 8; // 9600=103 baud @ 16 MHz, 51=9600 @ 8 MHz
 	//UBRR0L = 51;
 	UCSR0B |= (1<<TXEN0) | (1<<RXEN0);// | (1 << RXCIE0);		//	Enable RX, TX
 	//UCSR0C &= ~(1<<USBS0);									//	1 stop bit
