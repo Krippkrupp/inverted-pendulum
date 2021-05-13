@@ -17,9 +17,9 @@
 
 		//		PID REGULATOR
 #define		DELTA_TIME	0.0004			//		For prescaler 32
-#define		P			30				//		Proportional value
-#define		Ki			0.0000001				//		Integral	constant
-#define		Kd			20				//		Derivative constant
+#define		P			19				//		Proportional value
+#define		Ki			0				//		Integral	constant
+#define		Kd			27				//		Derivative constant
 //#define		TARGET_1	698				//		Target value for degree = 0. Gör om till variabel så kan vi köra den också?
 //#define		TARGET_2	712
 
@@ -28,7 +28,7 @@
 #define BACKWARDS 0
 #define FORWARD (1<<7)
 
-#define RASPBERRY_PI_DELAY 1	//Nej: 50, 100, 250 Ja(?): 500, 400 ja, 350 verkar bra
+#define RASPBERRY_PI_DELAY 2	//
 
 #include <util/delay.h>
 #include <avr/io.h>
