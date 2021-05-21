@@ -14,12 +14,16 @@
 #define		ADC_SWITCH	2
 
 #define		NOTHING_VAL 0				//		Don tmove if e1 and e2 are less than this, likely an error 
-
 		//		PID REGULATOR
 #define		DELTA_TIME	0.0004			//		For prescaler 32
-#define		P			19				//		Proportional value
-#define		Ki			0				//		Integral	constant
-#define		Kd			27				//		Derivative constant
+//#define		P			3				//		Proportional value
+//#define		Ki			15*DELTA_TIME				//		Integral	constant
+//#define		Kd			1*DELTA_TIME				//		Derivative constant
+//#define		Tao			0,1				//		Sampling time filter, (Använder som 2Tao-T)
+
+
+
+
 //#define		TARGET_1	698				//		Target value for degree = 0. Gör om till variabel så kan vi köra den också?
 //#define		TARGET_2	712
 
@@ -36,6 +40,11 @@
 #include "adc.h"
 #include "usart.h"
 
+
+double		P	=		3;				//		Proportional value
+double		Ki	=		15*DELTA_TIME;				//		Integral	constant
+double		Kd	=		1*DELTA_TIME;				//		Derivative constant
+double		Tao	=		0.1;		//		Sampling time filter, (Använder som 2Tao-T)
 
 
 volatile int adc_val;
@@ -55,6 +64,8 @@ int H1_MAX, H1_MIN, H2_MAX;
 int H2_MIN;
 int TARGET_1, TARGET_2;
 
+volatile double prev_int = 0;
+volatile double prev_deriv = 0;
 
 
 int e_val_1 = 0;
@@ -118,13 +129,8 @@ ISR(ADC_vect){
 		transmit_counter++;
 		return;}
 	
-		
 	
-	/*
-	uint8_t tmp = adc_val-TARGET_1;	// REMOVE LATER; 
-	usart_transmit(tmp);
-	return;
-	*/
+	
 	moving_avarage_counter++;											
 	if(sensor==H1_SENS){
 		buffer+=adc_val;						//	Max value 65535 for uint16_t, FIX quit if buffer+adc_val>65535?
@@ -197,75 +203,59 @@ ISR(ADC_vect){
 */
 void getDegree(){	// Dåligt namn. Byt det ditt äckel
 	
-	
-	//TEST, byter H1>H2 mot e1>e2
-	//if(H1>H2){										//	Leaning towards H2, need to drive forward, e1 should be used
-	/*
-	uint8_t tmp;
-	speed = P*e1+Kd*(H1-H1_prev);
-	if(e1<=0){
-		motor_direction=BACKWARDS;
-	}else{
-		motor_direction=FORWARD;
-	}
-	if(speed>0){
-		if(speed>=127){speed=126;}
-			tmp=speed;
-	}else{
-		if(speed<=-127){speed=126;}
-			tmp=speed;
-	}
-	tmp|=motor_direction;
-		usart_transmit(tmp);
-	reset_counters();
-	
-	return;
-	*/
-	/*
-	if(e1 < NOTHING_VAL && e2 < NOTHING_VAL){
+	if(e1<NOTHING_VAL && e2<NOTHING_VAL){
 		e1=0;
 		e2=0;
-		speed = 0;
-		send_motorspeed();
-		return;
-	}*/
-	
-	/*
-	if(e1==e2 || (e1 < NOTHING_VAL && e2 < NOTHING_VAL)){
-		e1=0;
-		e2=0;
-		speed = 0;
-		send_motorspeed();
+		prev_deriv=0;
+		prev_int=0;
 		return;
 	}
-	*/
-	
-	/// TA bort ovan
 	
 	if(e1>e2){
-		//speed = -(P*e1);
-		speed = abs(P*e1+Ki*(TARGET_1-(H1+H1_prev)/2)+Kd*(H1-H1_prev));//+Ki*(H1-H1_prev)*DELTA_TIME+Kd*(H1-H1_prev)*DELTA_TIME);			//	Negative multiplication due to the nature of TARGET-adc_val
-		/*double tmp = speed;
-		tmp/=max_speed_e1;
-		tmp*=125;
-		speed = tmp;*/
-		motor_direction = FORWARD;
-	}else{											//	Leaning towards H1, need to drive backwards, e2 should be used
-		speed = abs(P*e2+Ki*(TARGET_2-(H2+H2_prev)/2)+Kd*(H2-H2_prev));//+Ki*(H2-H2_prev)*DELTA_TIME+Kd*(H2-H2_prev)*DELTA_TIME);			//	Negative multiplication due to the nature of TARGET-adc_val
-		/*speed/=max_speed_e2;
-		speed*=127;*/
-		/*double tmp = speed;
-		tmp/=max_speed_e1;
-		tmp*=125;
-		speed = tmp;*/
+		//speed = abs(P*e1+Ki*(TARGET_1-(H1+H1_prev)/2)+prev_int+Kd*(H1-H1_prev)+prev_deriv);//+Ki*(H1-H1_prev)*DELTA_TIME+Kd*(H1-H1_prev)*DELTA_TIME);			//	Negative multiplication due to the nature of TARGET-adc_val
 		
-		motor_direction = BACKWARDS;
+		//speed = abs(P*e1+Ki*(TARGET_1-(H1+H1_prev)/2)+Kd*(H1-H1_prev));//+Ki*(H1-H1_prev)*DELTA_TIME+Kd*(H1-H1_prev)*DELTA_TIME);			//	Negative multiplication due to the nature of TARGET-adc_val
+		
+		//Med prev
+		speed =  (P*e1+Ki*(TARGET_1-(H1+H1_prev)/2)+prev_int+Kd*(H1-H1_prev)+prev_deriv);
+		
+		
+		
+		
+		
+		prev_int=Ki*(TARGET_1-(H1+H1_prev)/2);
+		prev_deriv=Tao*Kd*(H1-H1_prev);
+		
+		//motor_direction = FORWARD;
+		if(speed<0){
+			motor_direction = BACKWARDS;
+			speed=-speed;
+		}
+			else{motor_direction = FORWARD;}
+	}else{											//	Leaning towards H1, need to drive backwards, e2 should be used
+		//speed = abs(P*e2+Ki*(TARGET_2-(H2+H2_prev)/2)+prev_int+Kd*(H2-H2_prev)+prev_deriv);//+Ki*(H2-H2_prev)*DELTA_TIME+Kd*(H2-H2_prev)*DELTA_TIME);			//	Negative multiplication due to the nature of TARGET-adc_val
+		//speed = abs(P*e2+Ki*(TARGET_2-(H2+H2_prev)/2)+Kd*(H2-H2_prev));//+Ki*(H2-H2_prev)*DELTA_TIME+Kd*(H2-H2_prev)*DELTA_TIME);			//	Negative multiplication due to the nature of TARGET-adc_val
+	
+		speed = (P*e2+Ki*(TARGET_2-(H2+H2_prev)/2)+prev_int+Kd*(H2-H2_prev)+prev_deriv);
+	
+		prev_int=Ki*(TARGET_2-(H2+H2_prev)/2);
+		prev_deriv=Tao*Kd*(H2-H2_prev);
+		
+		
+		//motor_direction = BACKWARDS;
+		if(speed<0){
+			motor_direction = FORWARD;
+			speed=-speed;	
+		}
+		else{motor_direction = BACKWARDS;}
 	}
 	
 	send_motorspeed();
 
 	
 }
+
+
 
 void send_motorspeed()
 {
