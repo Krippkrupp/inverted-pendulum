@@ -85,7 +85,7 @@ volatile uint16_t transmit_counter = 0; /// Test
 int max_speed_e1, max_speed_e2;
 
 // Functions, move later
-void getDegree();
+void setPID();
 void send_motorspeed();
 void startSeq();				//	Starting sequence... skönt att vi inte valde rotationsenkoder
 void reset_counters();
@@ -148,7 +148,7 @@ ISR(ADC_vect){
 			
 
 			
-			getDegree();
+			setPID();
 			}
 		}
 		else{
@@ -167,7 +167,7 @@ ISR(ADC_vect){
 				buffer=0;
 				
 
-				getDegree();
+				setPID();
 			}
 		}
 		/*
@@ -201,7 +201,7 @@ ISR(ADC_vect){
 *	\brief Determines degree depending on which sensor has the most correct reading
 *	at the current place in time.
 */
-void getDegree(){	// Dåligt namn. Byt det ditt äckel
+void setPID(){
 	
 	if(e1<NOTHING_VAL && e2<NOTHING_VAL){
 		e1=0;
@@ -277,12 +277,11 @@ void send_motorspeed()
 
 void reset_counters(){
 		adc_switch_counter = 0;							//	Already done at least two readings, keep going.
-		transmit_counter=0;		// Fix: flytta dessa två till en egen "reset_counters" ska ske efter transmits
+		transmit_counter=0;		
 }
 
 void startSeq(){
 	while(!(PINA&(1<<PINA7)));
-	//Ta en miljard värden
 	int buffer = 0;
 	uint8_t nbr_avg = 10;
 	uint8_t delay_time = 5;
